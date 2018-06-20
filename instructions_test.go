@@ -164,4 +164,12 @@ func TestString(t *testing.T) {
 		t.Errorf("toString was incorrect, got %v, expected %v", result, expected)
 	}
 
+  // 0xAXXX
+	inst = instruction(0xA2A1)
+	result = fmt.Sprintf("%v", inst)
+	expected = "A2A1 MVI I 0x2A1"
+	if result != expected {
+		t.Errorf("toString was incorrect, got %v, expected %v", result, expected)
+	}
+
 }
