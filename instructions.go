@@ -114,7 +114,7 @@ func (inst instruction) String() string {
 	case 0xC000:
     // Set register VX to Imm & rand(0,255)
 		reg := inst >> 8 & 0x0F
-		imm := inst & 0x0fff
+		imm := inst & 0x00ff
 		return preamble + fmt.Sprintf("RAND V%X 0x%04X", uint16(reg), uint16(imm))
 	case 0xD000:
 		regX := inst >> 8 & 0x0F
@@ -160,19 +160,15 @@ func (inst instruction) String() string {
       return preamble + fmt.Sprintf("MOVBCD V%X", uint16(reg))
     case 0x55:
       // Stores V0 to VX in memory starting at I
-      return preamble + fmt.Sprintf("STORE (I) V0-V%X", uint16(reg))
+      return preamble + fmt.Sprintf("STORE (I), V0-V%X", uint16(reg))
     case 0x65:
       // Load values at V0 to VX starting at memory address I
-      return preamble + fmt.Sprintf("LOAD V0-V%X (I)", uint16(reg))
+      return preamble + fmt.Sprintf("LOAD V0-V%X, (I)", uint16(reg))
+    default:
+      return "Instruction not recognized"
     }
-	default:
-		return "Instruction not recognized"
+  default:
+    return "Instruction not valid"
 	}
-	return "Instruction not recognized"
-}
-
-func main() {
-	test_instruction := instruction(0x3A00)
-
-	fmt.Println(test_instruction)
+  return "Instruction not valid"
 }
