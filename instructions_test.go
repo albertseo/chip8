@@ -2,7 +2,7 @@ package chip8
 
 import (
 	"testing"
-  "fmt"
+	"fmt"
 )
 
 func TestString(t *testing.T) {
