@@ -9,8 +9,8 @@ import (
 type cpu struct {
 	// Memory is 4096 bytes
 	memory [4096]uint8
-	// Graphics is 2048 bits
-	graphics [2048]uint8
+  // Graphics is 2048 bits
+  graphics Display
 	// There are 16 registers, each with 8 bits of memory
 	reg [16]uint8
 	// Memory address register I of 16 bits
@@ -26,6 +26,8 @@ type cpu struct {
 	sp uint16
   // Array to record which key is held
   key [16]int
+  // Flag to see if need to flush graphics to screen
+  drawFlag bool
 }
 
 // Returns a new instance of a Chip-8 CPU
@@ -64,6 +66,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
     switch inst & 0x0FFF {
     case 0x00E0:
       // Clear screen
+      c8.graphics.clear()
     case 0x00EE:
       // Return from subroutine
       c8.sp -= 1
@@ -185,13 +188,15 @@ func (c8 *cpu) executeInstruction(inst uint16) {
     // Set register VX to Imm & rand(0,255)
     regX := inst >> 8 & 0x0F
     imm := inst & 0x00ff
-    c8.reg[regX] = imm & uint8(Int())
+    c8.reg[regX] = uint8(imm) & uint8(rand.Int())
   case 0xD000:
     // Draw stuff to the screen
-    // regX := inst >> 8 & 0x0F
-    // regY := inst >> 4 & 0x00F
-    // N := inst & 0x000F
-    // return preamble + fmt.Sprintf("SPRITE V%X, V%X, %X", uint16(regX), uint16(regY), uint16(N))
+    xCord := c8.reg[inst >> 8 & 0x0F]
+    yCord := c8.reg[inst >> 4 & 0x00F]
+    height := inst & 0x000F
+    c8.graphics.drawSprite(xCord, yCord, height, c8.memory[c8.i:c8.i+height])
+    // Maybe Flush to screen here?
+    c8.drawFlag = true
   case 0xE000:
     switch inst & 0x00FF {
     case 0x9E:
@@ -206,26 +211,25 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       if c8.key[c8.reg[regX]] != 1 {
         c8.pc += 2
       }
-      // return preamble + fmt.Sprintf("SKIP.NKEY V%X", uint16(reg))
     }
   case 0xF000:
-    // reg := inst >> 8 & 0x0F
+    regX := inst >> 8 & 0x0F
     switch inst & 0x00FF {
     case 0x07:
       // Set VX to value of delay timer
-      // return preamble + fmt.Sprintf("MOV V%X DELAY", uint16(reg))
+      c8.reg[regX] = c8.timerDelay
     case 0x0A:
       // Wait for keypress, then store in VX
       // return preamble + fmt.Sprintf("WAITKEY V%X", uint16(reg))
     case 0x15:
       // Set delay timer to value in VX
-      // return preamble + fmt.Sprintf("MOV DELAY V%X", uint16(reg))
+      c8.timerDelay = c8.reg[regX]
     case 0x18:
       // Set sound timer to value in VX
-      // return preamble + fmt.Sprintf("MOV SOUND V%X", uint16(reg))
+      c8.soundDelay = c8.reg[regX]
     case 0x1E:
       // ADDS VX to I
-      // return preamble + fmt.Sprintf("ADD I V%X", uint16(reg))
+      c8.i += uint16(c8.reg[regX])
     case 0x29:
       // Sets I to the location of sprite of character in VX
       // return preamble + fmt.Sprintf("SPRITECHAR I V%X", uint16(reg))
@@ -234,10 +238,14 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       // return preamble + fmt.Sprintf("MOVBCD V%X", uint16(reg))
     case 0x55:
       // Stores V0 to VX in memory starting at I
-      // return preamble + fmt.Sprintf("STORE (I), V0-V%X", uint16(reg))
+      for j := 0; j < int(regX); j++ {
+        c8.memory[c8.i + uint16(j)] = c8.reg[j]
+      }
     case 0x65:
       // Load values at V0 to VX starting at memory address I
-      // return preamble + fmt.Sprintf("LOAD V0-V%X, (I)", uint16(reg))
+      for j := 0; j < int(regX); j++ {
+        c8.reg[j] = c8.memory[c8.i + uint16(j)]
+      }
     }
   }
 }
@@ -246,7 +254,6 @@ func (c8 *cpu) loadFile(fileName string) {
   buffer, err := ioutil.ReadFile(fileName)
 
   if err != nil {
-    log.Fatal(err)
     fmt.Printf("Welp")
   }
 
