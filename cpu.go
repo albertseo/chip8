@@ -4,6 +4,8 @@ import (
 	"fmt"
   "io/ioutil"
   "math/rand"
+
+  "github.com/nsf/termbox-go"
 )
 
 type cpu struct {
@@ -29,6 +31,25 @@ type cpu struct {
   // Flag to see if need to flush graphics to screen
   drawFlag bool
 }
+
+// Preloaded fonts for the memory starting at 0x000 in the memory
+var fontSprite = []uint8{ 
+  0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+  0x20, 0x60, 0x20, 0x20, 0x70, // 1
+  0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+  0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+  0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+  0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+  0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+  0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+  0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+  0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+  0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+  0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+  0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+  0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+  0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+  0xF0, 0x80, 0xF0, 0x80, 0x80}
 
 // Returns a new instance of a Chip-8 CPU
 func newCpu() *cpu {
@@ -194,7 +215,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
     xCord := c8.reg[inst >> 8 & 0x0F]
     yCord := c8.reg[inst >> 4 & 0x00F]
     height := inst & 0x000F
-    c8.graphics.drawSprite(xCord, yCord, height, c8.memory[c8.i:c8.i+height])
+    c8.reg[15] = c8.graphics.drawSprite(xCord, yCord, height, c8.memory[c8.i:c8.i+height])
     // Maybe Flush to screen here?
     c8.drawFlag = true
   case 0xE000:
@@ -220,7 +241,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.reg[regX] = c8.timerDelay
     case 0x0A:
       // Wait for keypress, then store in VX
-      // return preamble + fmt.Sprintf("WAITKEY V%X", uint16(reg))
+      c8.reg[regX] = c8.getKey()
     case 0x15:
       // Set delay timer to value in VX
       c8.timerDelay = c8.reg[regX]
@@ -232,10 +253,15 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.i += uint16(c8.reg[regX])
     case 0x29:
       // Sets I to the location of sprite of character in VX
-      // return preamble + fmt.Sprintf("SPRITECHAR I V%X", uint16(reg))
+      c8.i = uint16(c8.reg[regX])
     case 0x33:
       // Stores BCD of VX at I, I+1, I+2
-      // return preamble + fmt.Sprintf("MOVBCD V%X", uint16(reg))
+      value := c8.reg[regX]
+      c8.memory[c8.i + 2] = uint8(value % 10)
+      value = value / 10
+      c8.memory[c8.i + 1] = uint8(value % 10)
+      value = value / 10
+      c8.memory[c8.i] = uint8(value % 10)
     case 0x55:
       // Stores V0 to VX in memory starting at I
       for j := 0; j < int(regX); j++ {
@@ -260,5 +286,22 @@ func (c8 *cpu) loadFile(fileName string) {
   for i := 0; i < len(buffer); i++ {
     c8.memory[512 + i] = buffer[i]
   }
-  
+}
+
+var keyMap = map[rune]byte{
+  '1': 0x01, '2': 0x02, '3': 0x03, '4': 0x0C,
+  'q': 0x04, 'w': 0x05, 'e': 0x06, 'r': 0x0D,
+  'a': 0x07, 's': 0x08, 'd': 0x09, 'f': 0x0E,
+  'z': 0x0A, 'x': 0x00, 'c': 0x0B, 'v': 0x0F,
+}
+
+func (c8 *cpu) getKey() (uint8) {
+  key := termbox.PollEvent()
+  return keyMap[key.Ch]
+}
+
+func (c8 *cpu) loadSprites() {
+  for i := 0; i < 80; i++ {
+    c8.memory[i] = fontSprite[i]
+  }
 }
