@@ -49,7 +49,7 @@ var fontSprite = []uint8{
   0xF0, 0x80, 0x80, 0x80, 0xF0, // C
   0xE0, 0x90, 0x90, 0x90, 0xE0, // D
   0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-  0xF0, 0x80, 0xF0, 0x80, 0x80}
+  0xF0, 0x80, 0xF0, 0x80, 0x80} // F
 
 // Returns a new instance of a Chip-8 CPU
 func newCpu() *cpu {
@@ -251,7 +251,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.i += uint16(c8.reg[regX])
     case 0x29:
       // Sets I to the location of sprite of character in VX
-      c8.i = uint16(c8.reg[regX])
+      c8.i = uint16(c8.reg[regX] * 5)
     case 0x33:
       // Stores BCD of VX at I, I+1, I+2
       value := c8.reg[regX]
@@ -262,13 +262,15 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.memory[c8.i] = uint8(value % 10)
     case 0x55:
       // Stores V0 to VX in memory starting at I
-      for j := 0; j < int(regX); j++ {
-        c8.memory[c8.i + uint16(j)] = c8.reg[j]
+      for j := 0; j <= int(regX); j++ {
+        c8.memory[c8.i] = c8.reg[j]
+        c8.i++
       }
     case 0x65:
       // Load values at V0 to VX starting at memory address I
-      for j := 0; j < int(regX); j++ {
-        c8.reg[j] = c8.memory[c8.i + uint16(j)]
+      for j := 0; j <= int(regX); j++ {
+        c8.reg[j] = c8.memory[c8.i]
+        c8.i++
       }
     }
   }
