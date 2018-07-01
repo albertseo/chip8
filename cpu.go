@@ -57,8 +57,6 @@ func newCpu() *cpu {
 	cp8 := new(cpu)
 	// Set stack pointer and program counter
 	cp8.pc = 0x200
-	cp8.sp = 0xfa0
-
 	return cp8
 }
 
@@ -100,7 +98,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
   case 0x2000:
     // CALL subroutine at address 0xNNN
     imm := inst & 0x0FFF
-    c8.stack[c8.sp] = c8.pc
+    c8.stack[c8.sp] = c8.pc - 2
     c8.sp += 1
     c8.pc = imm
   case 0x3000:
@@ -156,7 +154,7 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.reg[regX] = c8.reg[regY] ^ c8.reg[regX]
     case 0x4:
       // Set VX to the value of VY + VX, VF set to 1 if there is a carry over
-      temp := c8.reg[regY] + c8.reg[regX]
+      temp := uint16(c8.reg[regY]) + uint16(c8.reg[regX])
       if temp > 0xFF {
         c8.reg[15] = 1
       } else {
@@ -165,28 +163,28 @@ func (c8 *cpu) executeInstruction(inst uint16) {
       c8.reg[regX] = uint8(temp)
     case 0x5:
       // Set VX to the value of VX - VY, VF set to 0 if need to borrow
-      if c8.reg[regX] > c8.reg[regY] {
+      if c8.reg[regX] >= c8.reg[regY] {
         c8.reg[15] = 1
       } else {
         c8.reg[15] = 0
       }
-      c8.reg[regX] = uint8(c8.reg[regX] - c8.reg[regY])
+      c8.reg[regX] = c8.reg[regX] - c8.reg[regY]
     case 0x6:
       // Set VX to the value of VY >> 1, VF set to least significant digit of VY
-      c8.reg[15] = c8.reg[regX] & 1
-      c8.reg[regX] = c8.reg[regX] >> 1
+      c8.reg[15] = c8.reg[regY] & 1
+      c8.reg[regX] = c8.reg[regY] >> 1
     case 0x7:
       // Set VX to the value of VY - VX, VH set to 0 if need to borrow
-      if c8.reg[regY] > c8.reg[regX] {
+      if c8.reg[regY] >= c8.reg[regX] {
         c8.reg[15] = 1
       } else {
         c8.reg[15] = 0
       }
-      c8.reg[regX] = uint8(c8.reg[regY] - c8.reg[regX])
+      c8.reg[regX] = c8.reg[regY] - c8.reg[regX]
     case 0xE:
       // Set VX and VY to VY << 1, VF set to most significant digit of VY before shift.
-      c8.reg[15] = c8.reg[regX] >> 7
-      c8.reg[regX] = c8.reg[regX] << 1
+      c8.reg[15] = c8.reg[regY] >> 7
+      c8.reg[regX] = c8.reg[regY] << 1
     }
   case 0x9000:
     if inst & 0x000F == 0x0 {
